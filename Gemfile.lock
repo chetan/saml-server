@@ -1,6 +1,6 @@
 GIT
   remote: git://github.com/chetan/saml_idp.git
-  revision: 4761004bb39d2e35b3bb2a4ba8e0a2bd22396bf8
+  revision: 2d8d12a50d9804933dd788218902ff0ac426fa55
   branch: logout_support
   specs:
     saml_idp (0.2.1)

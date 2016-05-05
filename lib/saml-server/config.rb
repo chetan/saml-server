@@ -1,6 +1,9 @@
+
+require "ostruct"
+
 module SamlServer
   Config = Struct.new(:service_providers, :users, :auth, :attributes)
-  User = Struct.new(:username, :password)
+  User = OpenStruct # pass username, password, etc
   SampleSp = Struct.new(:name, :url)
 
   class << self
@@ -24,12 +27,12 @@ module SamlServer
   end
 
   # Add a user and password for SAML authentication
-  def self.add_user(username, password)
+  def self.add_user(username, password=nil)
     if username.kind_of? User then
       self.config.users << username
       return
     end
-    self.config.users << User.new(username, password)
+    self.config.users << User.new({username: username, password: password})
   end
 
   # Add a service provider to the portal

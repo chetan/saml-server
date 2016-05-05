@@ -11,5 +11,14 @@ OptionParser.new do |o|
   o.on('--sp NAME:URL', 'Add a service provider to the portal') { |sp| SamlServer.add_sp(*sp.split(':', 2)) }
 end.parse!
 
+
+CONFIG_FILE = File.expand_path("../../conf/config.rb", __FILE__)
+if !File.exists?(CONFIG_FILE) then
+  STDERR.puts "conf/config.rb not found!"
+  exit 1
+end
+
+require CONFIG_FILE
+
 SamlServer::App.set :port, options[:port] if options[:port]
 SamlServer::App.run!

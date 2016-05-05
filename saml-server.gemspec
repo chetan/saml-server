@@ -16,5 +16,5 @@ Gem::Specification.new do |spec|
   spec.executables << 'saml-server'
 
   spec.add_dependency 'sinatra'
-  spec.add_dependency 'ruby-saml-idp'
+  spec.add_dependency 'saml_idp'
 end

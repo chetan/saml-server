@@ -1,5 +1,5 @@
 require 'zlib'
-require 'ruby-saml-idp'
+require 'saml_idp'
 require 'sinatra/base'
 
 module SamlServer
@@ -13,48 +13,59 @@ module SamlServer
       include SamlIdp::Controller
 
       def current_user
-        session[:username]
+        username = session[:username]
+        SamlServer.config.users.detect { |user| username && user.username == username }
       end
-    end
-
-    before '/' do
-      redirect '/login' unless current_user or request.path =~ %r{^/login/?} or request.path =~ %r{^/saml/}
     end
 
     get '/' do
       erb :index
     end
 
-    get '/login' do
-      current_user ? redirect('/') : erb(:login)
+    def validate_saml_request()
+      raw_saml_request = params[:SAMLRequest] || session[:SAMLRequest]
+      decode_request(raw_saml_request)
+      halt(401, "invalid SAML request") unless valid_saml_request?
     end
 
-    post '/login' do
-      auth = SamlServer.config.auth.(params[:username], params[:password], request)
-      if auth.success?
-        session[:username] = params[:username]
-        redirect session[:SAMLRequest] ? '/saml' : '/'
+    before '/saml/auth' do
+      validate_saml_request
+    end
+
+    # show login form
+    get '/saml/auth' do
+      session[:SAMLRequest] = params[:SAMLRequest]
+      if current_user then
+        # already logged in, redir back
+        @saml_response = encode_response(current_user)
+        erb :saml_response
       else
-        @errors = auth.messages
         erb :login
       end
     end
 
-    get '/logout' do
-      session.clear
-      redirect '/login'
-    end
-
-    get '/saml' do
-      if current_user
-        decode_SAMLRequest(params[:SAMLRequest] || session.delete(:SAMLRequest))
-        @saml_response = encode_SAMLResponse(current_user, attributes: SamlServer.config.attributes.(current_user))
+    post '/saml/auth' do
+      user = SamlServer.config.auth.(params[:username], params[:password], request)
+      if user then
+        session[:username] = params[:username]
+        @saml_response = encode_response(current_user)
         erb :saml_response
       else
-        session[:SAMLRequest] = params[:SAMLRequest]
-        redirect '/login'
+        @errors = ["Incorrect email or password."]
+        erb :login
       end
     end
+
+    get '/saml/logout' do
+      session.clear
+      erb :logout
+    end
+
+    get '/saml/metadata' do
+      content_type 'text/xml'
+      SamlIdp.metadata.signed
+    end
+
   end
 end
 
@@ -69,14 +80,14 @@ __END__
   <% end %>
 </ul>
 <hr />
-<a href="<%= url('/logout') %>">Logout</a>
+<a href="<%= url('/saml/logout') %>">Logout</a>
 
 @@ login
 <h3>Login</h3>
 <% @errors.each do |error| %>
   <p><%= error %></p>
 <% end if @errors %>
-<form action="<%= url('/login') %>" method="post">
+<form action="<%= url('/saml/auth') %>" method="post">
   <p>
     <label for="username">Email</label>
     <input type="text" id="username" name="username" value="<%= params[:username] %>" autofocus="autofocus" />
@@ -88,8 +99,11 @@ __END__
   <p><input type="submit" value="Login" /></p>
 </form>
 
+@@ logout
+<h2>logged out</h2>
+
 @@ saml_response
-<form action="<%= @saml_acs_url %>" method="post">
+<form action="<%= saml_acs_url %>" method="post">
   <input type="hidden" name="SAMLResponse" value="<%= @saml_response %>" />
   <p>You are being signed in. If you are not redirected soon, please click <input type="submit" value="Continue" /></p>
 </form>
@@ -102,7 +116,7 @@ __END__
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Login</title>
+    <title>IdP Sandbox</title>
   </head>
   <body>
     <%= yield %>

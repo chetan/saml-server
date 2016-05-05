@@ -8,13 +8,13 @@ module SamlServer
   end
   @config = Config.new([], [])
 
-  # The default auth will always return true if there are no users
+  # Return a user object if user/pass is valid
   self.config.auth = proc do |username, password, request|
     users = SamlServer.config.users
-    if users.empty? or users.detect { |user| username && user.username == username && user.password == password }
-      SamlServer::Auth.success
+    if users.nil? or users.empty? then
+      nil
     else
-      SamlServer::Auth.failure('Password does not match')
+      users.detect { |user| username && user.username == username && user.password == password }
     end
   end
 

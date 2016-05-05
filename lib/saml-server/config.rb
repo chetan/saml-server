@@ -1,6 +1,6 @@
 module SamlServer
   Config = Struct.new(:service_providers, :users, :auth, :attributes)
-  SampleUser = Struct.new(:username, :password)
+  User = Struct.new(:username, :password)
   SampleSp = Struct.new(:name, :url)
 
   class << self
@@ -25,7 +25,11 @@ module SamlServer
 
   # Add a user and password for SAML authentication
   def self.add_user(username, password)
-    self.config.users << SampleUser.new(username, password)
+    if username.kind_of? User then
+      self.config.users << username
+      return
+    end
+    self.config.users << User.new(username, password)
   end
 
   # Add a service provider to the portal
